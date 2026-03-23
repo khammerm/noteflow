@@ -1,0 +1,9 @@
+{
+  "name": "noteflow",
+  "version": "1.0.0",
+  "description": "AI-powered SOAP note generator for therapists",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
