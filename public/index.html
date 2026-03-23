@@ -412,7 +412,7 @@
   </div>
   <div class="nav-right">
     <div class="nav-badge">Free Trial</div>
-    <button class="btn-upgrade" onclick="alert('Coming soon! $39/mo for unlimited notes.')">Upgrade to Pro</button>
+    <button class="btn-upgrade" onclick="goToStripe()">Upgrade to Pro</button>
   </div>
 </nav>
 
@@ -429,7 +429,7 @@
       <div class="usage-pips" id="pips"></div>
       <span class="usage-text">Free trial: <strong id="usageText">0 of 5</strong> notes used</span>
     </div>
-    <button class="btn-upgrade" onclick="alert('Coming soon! $39/mo for unlimited notes.')">
+    <button class="btn-upgrade" onclick="goToStripe()">
       Unlock Unlimited →
     </button>
   </div>
@@ -524,15 +524,44 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
 <script>
   const FREE_LIMIT = 5;
   let usage = parseInt(localStorage.getItem('nf_usage') || '0');
+  let proToken = localStorage.getItem('nf_pro_token') || null;
+  const isPro = !!proToken;
+
+  // ── STRIPE PAYMENT LINK ──
+  // Replace this with your actual Stripe Payment Link URL
+  //const STRIPE_LINK = 'https://buy.stripe.com/cNi00i8b95055C9e78b7y00';
+  const STRIPE_LINK = 'https://buy.stripe.com/test_aFa9AV6HJ9UxfpJ8AY1Fe00';
+
+  function goToStripe() {
+    window.location.href = STRIPE_LINK;
+  }
 
   // ── INIT ──
   function init() {
     document.getElementById('sessionDate').valueAsDate = new Date();
-    renderPips();
+    if (isPro) {
+      const email = localStorage.getItem('nf_pro_email') || '';
+      document.querySelector('.usage-bar').innerHTML =
+        `<div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+           <span style="color:var(--accent);font-size:16px;">✓</span>
+           <strong style="color:var(--accent-dark);">Pro</strong>
+           <span style="color:var(--text-muted)">${email ? '· ' + email : ''} · Unlimited notes</span>
+         </div>
+         <button class="btn-upgrade" onclick="logout()">Sign out</button>`;
+    } else {
+      renderPips();
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('nf_pro_token');
+    localStorage.removeItem('nf_pro_email');
+    location.reload();
   }
 
   function renderPips() {
     const container = document.getElementById('pips');
+    if (!container) return;
     container.innerHTML = '';
     for (let i = 0; i < FREE_LIMIT; i++) {
       const pip = document.createElement('div');
@@ -549,8 +578,9 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
       showError('Please enter a session summary (at least a sentence or two).');
       return;
     }
-    if (usage >= FREE_LIMIT) {
-      showError('You\'ve used all 5 free notes. Click "Upgrade to Pro" to continue.');
+    if (!isPro && usage >= FREE_LIMIT) {
+      showError('You\'ve used all 5 free notes.');
+      goToStripe();
       return;
     }
 
@@ -565,10 +595,14 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
       sessionType: document.getElementById('sessionType').value,
     };
 
+    // Build headers — include pro token if available
+    const headers = { 'Content-Type': 'application/json' };
+    if (proToken) headers['Authorization'] = `Bearer ${proToken}`;
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -577,9 +611,12 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
       if (!res.ok) throw new Error(data.error || 'Something went wrong.');
 
       renderOutput(data.soap, payload);
-      usage++;
-      localStorage.setItem('nf_usage', usage);
-      renderPips();
+
+      if (!isPro) {
+        usage++;
+        localStorage.setItem('nf_usage', usage);
+        renderPips();
+      }
 
     } catch (err) {
       showError(err.message);
