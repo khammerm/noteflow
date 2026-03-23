@@ -393,6 +393,46 @@
   }
 
   /* ── RESPONSIVE ── */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  }
+  .modal h2 {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--accent-dark);
+    margin-bottom: 6px;
+  }
+  .modal h2 em { font-style: italic; color: var(--accent); }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; font-weight: 300; }
+  .modal-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .modal-field label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-muted); }
+  .modal-field input { font-family: var(--sans); font-size: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .modal-field input:focus { border-color: var(--accent); }
+  .btn-restore { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-family: var(--serif); font-size: 16px; font-style: italic; cursor: pointer; transition: background 0.15s; margin-bottom: 10px; }
+  .btn-restore:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn-restore:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-cancel { width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-cancel:hover { background: var(--surface2); }
+  .restore-msg { font-size: 13px; min-height: 18px; margin-bottom: 12px; }
+  .restore-msg.error { color: #c0392b; }
+  .restore-msg.success { color: var(--accent); }
+
   @media (max-width: 600px) {
     nav { padding: 0 16px; }
     .container { padding: 28px 16px 60px; }
@@ -429,9 +469,10 @@
       <div class="usage-pips" id="pips"></div>
       <span class="usage-text">Free trial: <strong id="usageText">0 of 5</strong> notes used</span>
     </div>
-    <button class="btn-upgrade" onclick="goToStripe()">
-      Unlock Unlimited →
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-upgrade" onclick="goToStripe()">Unlock Unlimited →</button>
+      <button onclick="openRestore()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--sans);text-decoration:underline;white-space:nowrap;">Already subscribed?</button>
+    </div>
   </div>
 
   <!-- INPUT CARD -->
@@ -521,6 +562,21 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
 
 </div>
 
+<!-- RESTORE ACCESS MODAL -->
+<div class="modal-backdrop" id="restoreModal">
+  <div class="modal">
+    <h2>Restore your<br/><em>Pro access.</em></h2>
+    <p>Enter the email you used when you subscribed. We'll verify your subscription with Stripe and restore your access instantly.</p>
+    <div class="modal-field">
+      <label>Email address</label>
+      <input type="email" id="restoreEmail" placeholder="you@example.com" onkeydown="if(event.key==='Enter') restoreAccess()"/>
+    </div>
+    <div class="restore-msg" id="restoreMsg"></div>
+    <button class="btn-restore" id="restoreBtn" onclick="restoreAccess()">Restore access</button>
+    <button class="btn-cancel" onclick="closeRestore()">Cancel</button>
+  </div>
+</div>
+
 <script>
   const FREE_LIMIT = 5;
   let usage = parseInt(localStorage.getItem('nf_usage') || '0');
@@ -530,7 +586,6 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
   // ── STRIPE PAYMENT LINK ──
   // Replace this with your actual Stripe Payment Link URL
   const STRIPE_LINK = 'https://buy.stripe.com/cNi00i8b95055C9e78b7y00';
-  //const STRIPE_TEST_LINK = 'https://buy.stripe.com/test_aFa9AV6HJ9UxfpJ8AY1Fe00';
 
   function goToStripe() {
     window.location.href = STRIPE_LINK;
@@ -557,6 +612,58 @@ Example: Client arrived visibly anxious, reported ongoing conflict with their ma
     localStorage.removeItem('nf_pro_token');
     localStorage.removeItem('nf_pro_email');
     location.reload();
+  }
+
+  // ── RESTORE MODAL ──
+  function openRestore() {
+    document.getElementById('restoreModal').classList.add('show');
+    setTimeout(() => document.getElementById('restoreEmail').focus(), 100);
+  }
+
+  function closeRestore() {
+    document.getElementById('restoreModal').classList.remove('show');
+    document.getElementById('restoreEmail').value = '';
+    document.getElementById('restoreMsg').textContent = '';
+    document.getElementById('restoreMsg').className = 'restore-msg';
+  }
+
+  async function restoreAccess() {
+    const email = document.getElementById('restoreEmail').value.trim();
+    if (!email) { showRestoreMsg('Please enter your email.', 'error'); return; }
+
+    const btn = document.getElementById('restoreBtn');
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    showRestoreMsg('', '');
+
+    try {
+      const res = await fetch('/api/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+      localStorage.setItem('nf_pro_token', data.token);
+      localStorage.setItem('nf_pro_email', data.email);
+      localStorage.removeItem('nf_usage');
+
+      showRestoreMsg('Pro access restored! Reloading...', 'success');
+      setTimeout(() => location.reload(), 1200);
+
+    } catch (err) {
+      showRestoreMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Restore access';
+    }
+  }
+
+  function showRestoreMsg(msg, type) {
+    const el = document.getElementById('restoreMsg');
+    el.textContent = msg;
+    el.className = 'restore-msg' + (type ? ' ' + type : '');
   }
 
   function renderPips() {
