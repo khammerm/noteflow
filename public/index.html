@@ -433,6 +433,37 @@
   .restore-msg.error { color: #c0392b; }
   .restore-msg.success { color: var(--accent); }
 
+  .btn-example {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-family: var(--sans);
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 16px;
+  }
+  .btn-example:hover { background: var(--accent); color: white; }
+  .example-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--accent);
+    color: white;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
   @media (max-width: 640px) {
     nav { padding: 0 16px; height: auto; min-height: 56px; flex-wrap: wrap; gap: 6px; padding-top: 10px; padding-bottom: 10px; }
     .logo { font-size: 19px; }
@@ -480,6 +511,7 @@
   <div class="page-header">
     <h1>Your SOAP notes,<br/><em>written in seconds.</em></h1>
     <p>Describe what happened — get a complete, professional clinical note ready to file.</p>
+    <p style="margin-top:10px;font-size:12px;color:var(--text-muted);">✓ Tried by therapists in private practice and home health this week</p>
   </div>
 
   <!-- USAGE BAR -->
@@ -492,6 +524,13 @@
       <button class="btn-upgrade" onclick="goToStripe()">Unlock Unlimited →</button>
       <button onclick="openRestore()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--sans);text-decoration:underline;white-space:nowrap;">Already subscribed?</button>
     </div>
+  </div>
+
+  <!-- EXAMPLE BUTTON -->
+  <div style="text-align:center;margin-bottom:12px;">
+    <button class="btn-example" onclick="loadExample()">
+      ⚡ See it in action — try an example
+    </button>
   </div>
 
   <!-- INPUT CARD -->
@@ -828,6 +867,17 @@ Generated with NoteFlow. Review before filing.`;
 
   function hideError() {
     document.getElementById('errorBox').classList.remove('show');
+  }
+
+  // ── EXAMPLE ──
+  function loadExample() {
+    document.getElementById('clientId').value = 'S.M.';
+    document.getElementById('sessionDate').valueAsDate = new Date();
+    document.getElementById('sessionType').value = 'Individual Therapy';
+    document.getElementById('sessionNotes').value = "Client arrived on time and appeared tired but engaged. Reported a difficult week — ongoing conflict with a coworker who she feels is undermining her in team meetings. States she feels \"invisible and dismissed\" at work and notices this triggers the same feelings from childhood with her older sister. Explored the connection between current workplace dynamics and early family patterns using psychodynamic techniques. Client identified that her tendency to go silent when feeling dismissed is a learned response from childhood rather than a conscious choice. Expressed relief at making this connection. Mood improved noticeably during session. No safety concerns. Assigned journaling homework — write about a recent moment she felt dismissed and what her younger self would have needed to hear.";
+    // Scroll to card and auto-generate
+    document.querySelector('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => generateNote(), 400);
   }
 
   init();
